@@ -59,6 +59,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 			<< std::endl;
 	}
 
+	is_initialized = true;
 
 }
 
@@ -102,22 +103,22 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 
 }
 
-void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
-	// TODO: Find the predicted measurement that is closest to each observed measurement and assign the 
+void ParticleFilter::dataAssociation(std::vector<LandmarkObs> potentials, std::vector<LandmarkObs>& observations) {
+	// TODO: Find the potential measurement that is closest to each observed measurement and assign the 
 	//   observed measurement to this particular landmark.
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
 	//   implement this method and use it as a helper during the updateWeights phase.
 	for (int i = 0; i < observations.size(); i++) {
 		double minDist = std::numeric_limits<double>::max();
 		int bestIndex = 0;
-		for (int p = 0; p < predicted.size(); p++) {
-			double d = dist(predicted[p].x, predicted[p].y, observations[i].x, observations[i].y);
+		for (int p = 0; p < potentials.size(); p++) {
+			double d = dist(potentials[p].x, potentials[p].y, observations[i].x, observations[i].y);
 			if (d < minDist) {
 				minDist = d;
 				bestIndex = p;
 			}
 		}
-		predicted[bestIndex].id = observations[i].id;
+		observations[i].id = potentials[bestIndex].id;
 	}
 }
 
@@ -133,6 +134,60 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   and the following is a good resource for the actual equation to implement (look at equation 
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
+
+	
+	for (int p = 0; p < particles.size(); p++) {
+		Particle pt = particles[p];
+		vector<LandmarkObs> potentials;
+		vector<LandmarkObs> transformed;
+		for (int i = 0; i < observations.size(); i++) {
+			// Transform observation from Vehicle's coordinates to Map's coordinates with respect to particle
+			LandmarkObs transformedObs = transformToMapCoords(observations[i], pt);
+			transformed.push_back(transformedObs);
+
+			// Check which landmarks are within sensor range
+			for (int m = 0; m < map_landmarks.landmark_list.size(); m++) {
+				if (dist(transformedObs.x, transformedObs.y, pt.x, pt.y) <= sensor_range) {
+					LandmarkObs landmark;
+					landmark.id = landmark.x = map_landmarks.landmark_list[m].id_i;
+					landmark.x = map_landmarks.landmark_list[m].x_f;
+					landmark.y = map_landmarks.landmark_list[m].y_f;
+					potentials.push_back(landmark);
+				}
+			}
+		}
+
+		// find nearest landmarks (from potentials) to transformed observations
+		dataAssociation(potentials, transformed);
+		
+		// save associations to particle
+		vector<int> associations;
+		vector<double> obs_x;
+		vector<double> obs_y;
+		for (int t = 0; t < transformed.size(); t++) {
+			associations.push_back(transformed[t].id);
+			obs_x.push_back(transformed[t].x);
+			obs_y.push_back(transformed[t].y);
+		}
+		SetAssociations(pt, associations, obs_x, obs_y);
+
+		// Calculate particle's new weight
+		double particle_weight = 1; // product of particles probability densities
+		for (int i = 0; i < pt.associations.size(); i++) {
+			int landmark_id = pt.associations[i];
+			Map::single_landmark_s landmark = map_landmarks.landmark_list[landmark_id-1];
+			double x_lm = landmark.x_f;
+			double y_lm = landmark.y_f;
+			double x_obs = pt.sense_x[i];
+			double y_obs = pt.sense_y[i];
+
+			particle_weight *= multiGaussPd(x_obs, y_obs, x_lm, y_lm, std_landmark[0], std_landmark[1]);
+		}
+
+		pt.weight = particle_weight;
+
+	}
+
 }
 
 void ParticleFilter::resample() {
@@ -181,4 +236,17 @@ string ParticleFilter::getSenseY(Particle best)
     string s = ss.str();
     s = s.substr(0, s.length()-1);  // get rid of the trailing space
     return s;
+}
+
+LandmarkObs ParticleFilter::transformToMapCoords(LandmarkObs observation, Particle p) {
+	LandmarkObs mapCoords;
+	mapCoords.x = p.x + (cos(p.theta) * observation.x) - (sin(p.theta * observation.y));
+	mapCoords.y = p.y + (sin(p.theta) * observation.x) + (cos(p.theta * observation.y));
+	return mapCoords;
+}
+
+double ParticleFilter::multiGaussPd(double x, double y, double mux, double muy,
+																		double stdx, double stdy) {
+	return (1/(2*M_PI*stdx*stdy))
+					* exp(-((pow(x-mux,2)/pow(2*stdx,2)) + (pow(y-muy,2)/pow(2*stdy,2))));
 }

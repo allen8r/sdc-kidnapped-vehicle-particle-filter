@@ -75,10 +75,10 @@ public:
 	/**
 	 * dataAssociation Finds which observations correspond to which landmarks (likely by using
 	 *   a nearest-neighbors data association).
-	 * @param predicted Vector of predicted landmark observations
+	 * @param potentials Vector of potential landmark observations
 	 * @param observations Vector of landmark observations
 	 */
-	void dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations);
+	void dataAssociation(std::vector<LandmarkObs> potentials, std::vector<LandmarkObs>& observations);
 	
 	/**
 	 * updateWeights Updates the weights for each particle based on the likelihood of the 
@@ -115,6 +115,15 @@ public:
 	const bool initialized() const {
 		return is_initialized;
 	}
+
+	/**
+	 * Transform x,y coordinates of the observation to the corresponding x,y coordinates in the Map system
+	 * with respect to the Map coordinates and bearing(theta) of the provided particle p.
+	 */
+	LandmarkObs transformToMapCoords(LandmarkObs observation, Particle p);
+
+	double multiGaussPd(double x, double y, double mux, double muy, double stdx, double stdy);
+
 };
 
 
