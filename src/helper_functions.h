@@ -241,4 +241,8 @@ inline bool read_landmark_data(std::string filename, std::vector<LandmarkObs>& o
 	return true;
 }
 
+inline double normalizeAngle(double a) {
+  return fmod(a, 2*M_PI); // a modulo 2*PI
+}
+
 #endif /* HELPER_FUNCTIONS_H_ */
