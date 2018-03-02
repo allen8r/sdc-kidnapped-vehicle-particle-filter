@@ -20,13 +20,13 @@
 using namespace std;
 
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
-	// TODO: Set the number of particles. Initialize all particles to first position (based on estimates of 
+	// Set the number of particles. Initialize all particles to first position (based on estimates of 
 	//   x, y, theta and their uncertainties from GPS) and all weights to 1. 
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 	
 	// Set number of particles
-	num_particles = 25;
+	num_particles = 100;
 
 	// Initialize size of weights vector
 	weights.resize(num_particles);
@@ -41,10 +41,8 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	normal_distribution<double> dist_y(y, std_y);
 	normal_distribution<double> dist_theta(normalizeAngle(theta), std_theta);
 
-	// Create particles using the Gaussians for sampling - introducing noise
+	// Create particles using the Gaussians for sampling
 	default_random_engine rand_gen;
-	//random_device device;
-	//mt19937 rand_gen(device());
 	
 	for (int i = 0; i < num_particles; i++) {
 		double sample_x = dist_x(rand_gen);
@@ -71,12 +69,11 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 }
 
 void ParticleFilter::prediction(double delta_t, double std_pos[], double velocity, double yaw_rate) {
-	// TODO: Add measurements to each particle and add random Gaussian noise.
+	// Add measurements to each particle and add random Gaussian noise.
 	// NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
 
-	cout << "prediction()..." << endl;
 	if (fabs(yaw_rate) < 0.0001) {
 		std::cout << "Error: division by zero, bad yaw_rate provided to ParticleFilter::prediction()!"
 			<< std::endl;
@@ -113,9 +110,11 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 
 }
 
-
+/**
+ * NOT USED
+ */
 void ParticleFilter::dataAssociation(std::vector<LandmarkObs> potentials, std::vector<LandmarkObs>& observations) {
-	// NOT USED: Find the potential measurement that is closest to each observed measurement and assign the 
+	// TODO: Find the potential measurement that is closest to each observed measurement and assign the 
 	//   observed measurement to this particular landmark.
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
 	//   implement this method and use it as a helper during the updateWeights phase.
@@ -174,7 +173,6 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 						bestIndex = p;
 					}
 				}
-				//transformed[i].id = potentials[bestIndex].id;
 				associations.push_back(potentials[bestIndex].id);
 				obs_x.push_back(transformed[i].x);
 				obs_y.push_back(transformed[i].y);
@@ -184,11 +182,12 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			particles[p].sense_x = obs_x;
 			particles[p].sense_y = obs_y;
 		
-
 			// Calculate particle's new weight
 			double particle_weight = 1.0; // product of particles probability densities
 			for (int i = 0; i < particles[p].associations.size(); i++) {
 				int landmark_id = particles[p].associations[i];
+				// NOTE: landmark ids are one-based while list of landmarks are zero-based indexed,
+				//  thus need to use landmark_id-1 to retrieve the correct associated landmark
 				Map::single_landmark_s landmark = map_landmarks.landmark_list[landmark_id-1];
 				double x_lm = landmark.x_f;
 				double y_lm = landmark.y_f;
@@ -199,7 +198,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
 				particle_weight *= prob;
 			}
-			cout << "particle_weight: p[" << p << "] " << particle_weight << endl;
+
 			particles[p].weight = particle_weight;
 			weights[p] = particle_weight;
 		}
@@ -218,15 +217,6 @@ void ParticleFilter::resample() {
 	default_random_engine rand_gen;
 	uniform_real_distribution<double> urdis(0, 1.0);
 	int index = int(urdis(rand_gen) * num_particles);
-	cout << "particles weights: " <<  endl;
-	for (int i = 0; i < particles.size(); i++) {
-		cout << "  " << particles[i].weight << endl;
-	}
-
-	cout << "weights: " <<  endl;
-	for (int i = 0; i < weights.size(); i++) {
-		cout << "  " << weights[i] << endl;
-	}
 	double weight_max = *max_element(weights.begin(),weights.end());
 	double beta = 0.0;
 
