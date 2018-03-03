@@ -74,38 +74,38 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
 
-	if (fabs(yaw_rate) < 0.0001) {
-		std::cout << "Error: division by zero, bad yaw_rate provided to ParticleFilter::prediction()!"
-			<< std::endl;
-		return;
-	}
-
-	double v_over_yaw_rate = velocity / yaw_rate;
-	double yaw_delta = yaw_rate * delta_t;
+	default_random_engine rand_gen;
 
 	double std_x = std_pos[0];
 	double std_y = std_pos[1];
 	double std_theta = std_pos[2];
-
-	default_random_engine rand_gen;
 
 	// Normal Gaussian distributions for x, y, and theta
 	normal_distribution<double> noisy_x(0.0, std_x);
 	normal_distribution<double> noisy_y(0.0, std_y);
 	normal_distribution<double> noisy_theta(0.0, std_theta);
 	
+	double v_dt = velocity * delta_t;
+	
 	for (int i = 0; i < num_particles; i++) {
-		double theta = normalizeAngle(particles[i].theta);
-		double theta_yaw_delta = normalizeAngle(theta + yaw_rate * delta_t);
-		particles[i].x = particles[i].x + v_over_yaw_rate * (sin(theta_yaw_delta) - sin(theta));
-		particles[i].y = particles[i].y + v_over_yaw_rate * (cos(theta) - cos(theta_yaw_delta));
-		particles[i].theta = theta_yaw_delta;
+		double theta = particles[i].theta;
 
+		if (fabs(yaw_rate) < 0.0001) { // yaw rate is zero
+			particles[i].x = particles[i].x + v_dt * cos(theta);
+			particles[i].y = particles[i].y + v_dt * sin(theta);
+
+		} else {	
+			double v_over_yaw_rate = velocity / yaw_rate;
+			double yaw_delta = yaw_rate * delta_t;	
+			double theta_yaw_delta = theta + yaw_rate * delta_t;
+			particles[i].x = particles[i].x + v_over_yaw_rate * (sin(theta_yaw_delta) - sin(theta));
+			particles[i].y = particles[i].y + v_over_yaw_rate * (cos(theta) - cos(theta_yaw_delta));
+			particles[i].theta = theta_yaw_delta;
+		}
 		// Add Gaussian noise
-		particles[i].x += cos(theta) * noisy_x(rand_gen);
-		particles[i].y += sin(theta) * noisy_y(rand_gen);
+		particles[i].x += noisy_x(rand_gen);
+		particles[i].y += noisy_y(rand_gen);
 		particles[i].theta += noisy_theta(rand_gen);
-		particles[i].theta = normalizeAngle(particles[i].theta);
 	}
 
 }
