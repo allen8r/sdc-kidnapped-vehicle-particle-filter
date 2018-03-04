@@ -122,6 +122,9 @@ public:
 	 */
 	LandmarkObs transformToMapCoords(LandmarkObs observation, Particle p);
 
+	/**
+ 	* Multivariate Gaussian Probability Density function
+ 	*/
 	double multiGaussPd(double x, double y, double mux, double muy, double stdx, double stdy);
 
 };

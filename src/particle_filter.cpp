@@ -90,11 +90,12 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	for (int i = 0; i < num_particles; i++) {
 		double theta = particles[i].theta;
 
-		if (fabs(yaw_rate) < 0.0001) { // yaw rate is zero
+		// Motion model
+		if (fabs(yaw_rate) < 0.0001) { // yaw rate is zero; constant yaw
 			particles[i].x = particles[i].x + v_dt * cos(theta);
 			particles[i].y = particles[i].y + v_dt * sin(theta);
 
-		} else {	
+		} else {	// non-zero yaw rate
 			double v_over_yaw_rate = velocity / yaw_rate;
 			double yaw_delta = yaw_rate * delta_t;	
 			double theta_yaw_delta = theta + yaw_rate * delta_t;
@@ -138,8 +139,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		vector<LandmarkObs> transformed;
 		for (int i = 0; i < observations.size(); i++) {
 			// Transform observation from Vehicle's coordinates to Map's coordinates with respect to particle
-			LandmarkObs transformedObs = transformToMapCoords(observations[i], particles[p]);
-			transformed.push_back(transformedObs);
+			transformed.push_back(transformToMapCoords(observations[i], particles[p]));
 		}
 
 		// Check which landmarks are within sensor range
@@ -159,6 +159,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		}
 
 		// Find nearest landmarks (from potentials) to transformed observations
+		//  and create particle associations to closest landmarks
 		if (potentials.size() > 0) {
 			vector<int> associations;
 			vector<double> obs_x;
@@ -250,7 +251,7 @@ Particle ParticleFilter::SetAssociations(Particle& particle, const std::vector<i
 }
 
 /**
- * NOT USED
+ * USED in main.cpp
  */
 string ParticleFilter::getAssociations(Particle best)
 {
@@ -263,7 +264,7 @@ string ParticleFilter::getAssociations(Particle best)
 }
 
 /**
- * NOT USED
+ * USED in main.cpp
  */
 string ParticleFilter::getSenseX(Particle best)
 {
@@ -276,7 +277,7 @@ string ParticleFilter::getSenseX(Particle best)
 }
 
 /**
- * NOT USED
+ * USED in main.cpp
  */
 string ParticleFilter::getSenseY(Particle best)
 {
